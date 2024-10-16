@@ -1,0 +1,1743 @@
+[
+    {
+        "id": "26467839981c7392",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": true,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "c4870175ad577363",
+        "type": "tab",
+        "label": "Flow 2",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "aae1cecd04864ffd",
+        "type": "tab",
+        "label": "Flow 3",
+        "disabled": true,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "546ed257b85f9a0f",
+        "type": "tab",
+        "label": "Flow 4",
+        "disabled": true,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "6dcd980295746559",
+        "type": "tab",
+        "label": "Flow 5",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "6d8ab450c8588e3a",
+        "type": "postgreSQLConfig",
+        "name": "",
+        "host": "localhost",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "postgres",
+        "databaseFieldType": "str",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "applicationName": "",
+        "applicationNameType": "str",
+        "max": "10",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "user": "postgres",
+        "userFieldType": "str",
+        "password": "admin",
+        "passwordFieldType": "str"
+    },
+    {
+        "id": "6f655115ce368eb2",
+        "type": "postgreSQLConfig",
+        "name": "",
+        "host": "127.0.0.1",
+        "hostFieldType": "str",
+        "port": "5432",
+        "portFieldType": "num",
+        "database": "birthday_bot_db",
+        "databaseFieldType": "str",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "applicationName": "",
+        "applicationNameType": "str",
+        "max": "10",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "10000",
+        "connectionTimeoutFieldType": "num",
+        "user": "postgres",
+        "userFieldType": "str",
+        "password": "admin",
+        "passwordFieldType": "str"
+    },
+    {
+        "id": "c935a346fd1a4cd9",
+        "type": "postgresql",
+        "z": "26467839981c7392",
+        "name": "",
+        "query": "INSERT INTO users (userId, \"{{msg.payload.column}}\")\nVALUES ('{{msg.payload.chat_id}}', '{{msg.payload.value}}')\nON CONFLICT (userId)\nDO UPDATE SET \"{{msg.payload.column}}\" = EXCLUDED.\"{{msg.payload.column}}\";\n",
+        "postgreSQLConfig": "6d8ab450c8588e3a",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1070,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "66a52ea85557cccf",
+        "type": "function",
+        "z": "26467839981c7392",
+        "name": "handling msg",
+        "func": "// node.warn('msg' + JSON.stringify(msg));\n\nconst response = JSON.parse(msg.payload);\n// node.warn('response: ' + JSON.stringify(response)); \nconst userId = response.result[0].message.from.id; // Отримуємо userId\nconst userMessage = response.result[response.result.length - 1].message.text; // Отримуємо текст повідомлення\nnode.warn('userId: '+ userId);\n\n// node.warn('response '+ JSON.stringify(response));\nnode.warn('User ID: ' + userId);\nnode.warn('User Message: ' + userMessage);\n\nconst stages = [\n    {\n        stage: 'start',\n        message: 'Hello! What is your name?',\n        variable: 'iserid'\n    },\n    {\n        stage: 'name',\n        message: 'Thank you! What is your e-mail?',\n        variable: 'name'\n    },\n    {\n        stage: 'email',\n        message: 'What is your birthday?',\n        variable: 'email'\n    },\n    {\n        stage: 'birthday',\n        message: 'Thank you! Your data saved',\n        variable: 'birthday'\n    },\n    {\n        stage: 'final',\n        message: 'Thank you! Your data saved',\n        variable: 'none'\n    }\n];\nlet stageNumber;\n\nif (userMessage === 'start') {\n    node.warn('Start from begin')\n    flow.set('stageNumber', 0);\n    stageNumber = 0;\n    \n    msg.payload = {\n        chat_id: userId, \n        text: stages[0].message,\n        value: userId,\n        column: stages[stageNumber].variable\n    };\n}\n\nstageNumber = flow.get('stageNumber') || 0;\nnode.warn('stageNumber: '+stageNumber);\nnode.warn(stages[stageNumber]);\n\n// Присвоюємо значення тільки якщо не на початковій стадії\nif (stageNumber > 0) {\n    // msg.payload.value = userMessage;\n    // msg.payload.column = stages[stageNumber].variable;\n    // msg.payload.text = stages[stageNumber].message;\n    // msg.payload.chat_id = userId;\n\n    msg.payload = {\n        chat_id: userId, \n        text: stages[stageNumber].message,\n        column: stages[stageNumber].variable,\n        value: userMessage\n    };\n\n    node.warn('column: '+msg.payload.column);\n    node.warn('value: '+msg.payload.value);\n    // Формуємо SQL-запит, якщо це не фінальна стадія\n    if (stages[stageNumber].stage !== 'final') {\n        // Перевіряємо, що значення стовпця не є \"none\"\n        if (msg.payload.column !== 'none') {\n            msg.payload.isQuery = true;\n            // msg.payload.query = `INSERT INTO users (${msg.payload.column}) VALUES (\"${msg.payload.value}\");`;\n        }\n    }\n}\n\n// Відправляємо повідомлення для наступної стадії\nmsg.payload.content = stages[stageNumber].message;\n\n\nconst nextStageNumber = stageNumber + 1;\nflow.set('stageNumber', nextStageNumber);\n\n// node.warn('msg.payload: ' + JSON.stringify(msg.payload));\nnode.warn('nextStageNumber: ' + nextStageNumber);\n\nif (stages[stageNumber].stage === 'final') {\n    node.warn('Data collection completed');\n    return msg; \n}\n\nnode.warn('Value: ' + msg.payload.value);\nnode.warn('Column: ' + msg.payload.column);\nnode.warn('Query: ' + msg.payload.query);\nmsg.originalPayload = { ...msg.payload };\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 300,
+        "wires": [
+            [
+                "501b5ae4408bc754"
+            ]
+        ]
+    },
+    {
+        "id": "0e5b2dcefe947e77",
+        "type": "http request",
+        "z": "26467839981c7392",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "query",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/getUpdates",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 170,
+        "y": 300,
+        "wires": [
+            [
+                "66a52ea85557cccf"
+            ]
+        ]
+    },
+    {
+        "id": "71f196a668035a42",
+        "type": "inject",
+        "z": "26467839981c7392",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 980,
+        "y": 160,
+        "wires": [
+            [
+                "0e5b2dcefe947e77"
+            ]
+        ]
+    },
+    {
+        "id": "501b5ae4408bc754",
+        "type": "http request",
+        "z": "26467839981c7392",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 590,
+        "y": 300,
+        "wires": [
+            [
+                "b8635c0aa5a5a0a7"
+            ]
+        ]
+    },
+    {
+        "id": "b8635c0aa5a5a0a7",
+        "type": "function",
+        "z": "26467839981c7392",
+        "name": "function 1",
+        "func": "node.warn('chat_id: ' + msg.originalPayload.chat_id);\nnode.warn('Value: ' + msg.originalPayload.value);\nnode.warn('Column: ' + msg.originalPayload.column);\nnode.warn('Query: ' + msg.originalPayload.query);\nnode.warn('Query: ' + msg.originalPayload.isQuery);\nmsg.payload = msg.originalPayload;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 760,
+        "y": 300,
+        "wires": [
+            [
+                "70e8744bf3c30c5e"
+            ]
+        ]
+    },
+    {
+        "id": "70e8744bf3c30c5e",
+        "type": "switch",
+        "z": "26467839981c7392",
+        "name": "",
+        "property": "payload.isQuery",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "false"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 910,
+        "y": 300,
+        "wires": [
+            [
+                "c935a346fd1a4cd9"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "95d68882f2867189",
+        "type": "inject",
+        "z": "c4870175ad577363",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 80,
+        "y": 80,
+        "wires": [
+            [
+                "a2ac72725f63db18"
+            ]
+        ]
+    },
+    {
+        "id": "d0c68515f194b849",
+        "type": "http request",
+        "z": "c4870175ad577363",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 630,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "4b73b36bca8a8514",
+        "type": "function",
+        "z": "c4870175ad577363",
+        "name": "create buttons",
+        "func": "node.warn(JSON.stringify(msg.payload))\nlet updates = msg.payload;\n\n// Перевіряємо, чи є нові повідомлення\nif (updates.result && updates.result.length > 0) {\n    let lastUpdate = updates.result[updates.result.length - 1];\n    \n    // Отримуємо chat_id з останнього повідомлення\n    msg.payload = {\n        chat_id: lastUpdate.message.chat.id,\n        text: 'Виберіть дію:',\n        reply_markup: JSON.stringify({\n            keyboard: [\n                [{ text: 'Додати новий контакт1' }],\n                [{ text: 'Переглянути всі контакти2' }],\n                [{ text: 'Переглянути однин контакт3' }]\n            ],\n            resize_keyboard: true,\n            one_time_keyboard: true\n        })\n    };\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 80,
+        "wires": [
+            [
+                "d0c68515f194b849"
+            ]
+        ]
+    },
+    {
+        "id": "689984079667d841",
+        "type": "http in",
+        "z": "c4870175ad577363",
+        "name": "input",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/telegram",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 270,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a2ac72725f63db18",
+        "type": "http request",
+        "z": "c4870175ad577363",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/getUpdates",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 250,
+        "y": 80,
+        "wires": [
+            [
+                "4b73b36bca8a8514"
+            ]
+        ]
+    },
+    {
+        "id": "c5d752d54bb3c121",
+        "type": "http request",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "query",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/getUpdates",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 310,
+        "y": 100,
+        "wires": [
+            [
+                "1c278b1d28522867"
+            ]
+        ]
+    },
+    {
+        "id": "a171213a5be21225",
+        "type": "inject",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "c5d752d54bb3c121"
+            ]
+        ]
+    },
+    {
+        "id": "1c278b1d28522867",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "begin flow",
+        "func": "flow.set('mainKeyboard', JSON.stringify({\n    keyboard: [\n        [{ text: 'Start' }],\n        [{ text: 'Create contact' }],\n        [{ text: 'Get all contacts' }],\n        [{ text: 'Get one contact' }]\n    ],\n    resize_keyboard: true,\n    one_time_keyboard: true\n}));\n\nconst keyboard = flow.get('mainKeyboard');\nmsg.payload.reply_markup = keyboard;\n\nconst result = msg.payload.result;\nconst firstMessage = result[0].message;\nconst lastMessage = result[result.length - 1].message;\nconst text = lastMessage.text;\nflow.set('text', text);\nconst chatId = lastMessage.chat.id;\nflow.set('userid', chatId);\n\n\n// Створити SQL запит з параметром\nmsg.query = `SELECT state FROM users WHERE chat_id = $1`;\n\nmsg.params = [chatId];\nnode.warn('keyboard: ' + JSON.stringify(msg.payload.reply_markup));\nmsg.payload.text = '1111'\nmsg.payload.chat_id = chatId\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 100,
+        "wires": [
+            [
+                "8d3b3f997e2a1540"
+            ]
+        ]
+    },
+    {
+        "id": "f1d8fc56846013ce",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "function 2",
+        "func": "// msg.payload тут містить результат запиту\nnode.warn(JSON.stringify(msg.payload)); \nnode.warn('pgsql ' + JSON.stringify(msg.pgsql))\nnode.warn('pgsql.rowCount '+ JSON.stringify(msg.pgsql.rowCount))\n\nconst userid = flow.get('userid');\nnode.warn('msg.payload.chat_id: ' + JSON.stringify(userid))\n\nmsg.payload.userExist = true;\nif (msg.pgsql.rowCount === 0) {\n    msg.payload.userExist = false\n}\nnode.warn('msg: '+JSON.stringify(msg.payload));\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 820,
+        "y": 100,
+        "wires": [
+            [
+                "2c0b810883a841db"
+            ]
+        ]
+    },
+    {
+        "id": "2c0b810883a841db",
+        "type": "switch",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "property": "payload.userExist",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "false"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 110,
+        "y": 260,
+        "wires": [
+            [
+                "6142a2b31e2c9be8"
+            ],
+            [
+                "3d13ccefab65b190"
+            ]
+        ]
+    },
+    {
+        "id": "3d13ccefab65b190",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "create user",
+        "func": "node.warn('user not exist')\nmsg.query = `INSERT INTO users (chat_id, state) VALUES ($1, 'start')` \nconst userid = flow.get('userid');\nmsg.params = [userid];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 280,
+        "wires": [
+            [
+                "57c636461dc17f4f"
+            ]
+        ]
+    },
+    {
+        "id": "8d3b3f997e2a1540",
+        "type": "postgresql",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "query": "",
+        "postgreSQLConfig": "6d8ab450c8588e3a",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 650,
+        "y": 100,
+        "wires": [
+            [
+                "f1d8fc56846013ce"
+            ]
+        ]
+    },
+    {
+        "id": "57c636461dc17f4f",
+        "type": "postgresql",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "query": "",
+        "postgreSQLConfig": "6d8ab450c8588e3a",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 530,
+        "y": 260,
+        "wires": [
+            [
+                "015dac981cb20b98"
+            ]
+        ]
+    },
+    {
+        "id": "015dac981cb20b98",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "get state",
+        "func": "node.warn('pgsql ' + JSON.stringify(`msg.pgsql`))\n\n    let state;\n    if (msg.pgsql.rowCount === 1) {\n        node.warn('msg.payload ' + JSON.stringify(msg.payload))\n        state = msg.payload[0].state;\n    } else {\n        state = 'start';\n    }\n    node.warn('state: '+ state);\n    flow.set('state', state);\n\n\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 260,
+        "wires": [
+            [
+                "6494ab74a75cabd8"
+            ]
+        ]
+    },
+    {
+        "id": "6761f502d9626cd3",
+        "type": "http request",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 670,
+        "y": 40,
+        "wires": [
+            [
+                "c125def2c3e5ff16"
+            ]
+        ]
+    },
+    {
+        "id": "c125def2c3e5ff16",
+        "type": "debug",
+        "z": "aae1cecd04864ffd",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 880,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "32d3bd2a7fb6ddfa",
+        "type": "http request",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 790,
+        "y": 420,
+        "wires": [
+            [
+                "40de4d26391c1abd"
+            ]
+        ]
+    },
+    {
+        "id": "c5f28b804a58e8a4",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "after state change",
+        "func": "// msg.payload тут містить результат запиту\nnode.warn(JSON.stringify(msg.payload));\n\n// Перевіряємо, чи є помилка в msg.error\nif (msg.error) {\n    node.warn('Error: ' + JSON.stringify(msg.error));\n} else {\n    node.warn('Query executed successfully');\n}\n\n// Виводимо інформацію про результат виконання запиту\nnode.warn('msg.pgsql ' + JSON.stringify(msg.pgsql));\nnode.warn('pgsql.rowCount ' + JSON.stringify(msg.pgsql.rowCount));\n\n// Отримуємо chat_id з flow для порівняння\nconst userid = flow.get('userid');\nnode.warn('msg.payload.chat_id: ' + JSON.stringify(userid));\n\n// Перевіряємо, чи існує користувач\nmsg.payload.userExist = true;\nif (msg.pgsql.rowCount === 0) {\n    msg.payload.userExist = false;\n}\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 870,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6142a2b31e2c9be8",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "select state from user",
+        "func": "node.warn('user exist')\nconst userid = flow.get('userid');\n\nmsg.query = `SELECT state FROM users WHERE chat_id = $1`\nmsg.params = [userid]\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 240,
+        "wires": [
+            [
+                "57c636461dc17f4f"
+            ]
+        ]
+    },
+    {
+        "id": "40de4d26391c1abd",
+        "type": "debug",
+        "z": "aae1cecd04864ffd",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 960,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "2df4c9b836008c55",
+        "type": "postgresql",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "query": "",
+        "postgreSQLConfig": "6d8ab450c8588e3a",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 790,
+        "y": 340,
+        "wires": [
+            [
+                "bf854ddc4ce50290",
+                "c817ae0e82dc1a34"
+            ]
+        ]
+    },
+    {
+        "id": "764e0f3661f7348d",
+        "type": "split",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "splt": "",
+        "spltType": "str",
+        "arraySplt": 1,
+        "arraySpltType": "len",
+        "stream": false,
+        "addname": "",
+        "property": "payload",
+        "x": 490,
+        "y": 380,
+        "wires": [
+            [
+                "f2d246eea5c5da7a"
+            ]
+        ]
+    },
+    {
+        "id": "25fcb7a1a9c484e2",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "handle state",
+        "func": "const stages = {\n    'start': {\n        stage: 'start',\n        message: 'Hello! What would you like to do?',\n        variable: 'iserid',\n        nextStage: 'waiting_for_choice',\n        query: ''\n    },\n    'waiting_for_choice': {\n        message: '',\n        query: ''\n    },\n    'no_such_stage': {\n        message: 'No such command. Make you choice one more time',\n        nextStage: \"start\"\n    },\n    'name': {\n        stage: 'name',\n        message: 'What is contact name?',\n        variable: 'name',\n        nextStage: 'email',\n    },\n    'email': {\n        stage: 'email',\n        message: 'What is your birthday?',\n        variable: 'email'\n    },\n    'birthday': {\n        stage: 'birthday',\n        message: 'Thank you! Your data saved',\n        variable: 'birthday'\n    },\n    'final': {\n        stage: 'final',\n        message: 'Thank you! Your data saved',\n        variable: 'none'\n    },\n    'create contact': {\n        message: 'Create contact. Input name',\n        variable: 'name',\n        nextStage: 'save_contact',\n        query: ''\n    },\n    'save_contact': {\n        message: 'Your contact saved',\n        variable: 'name',\n        nextStage: 'start',\n        query: 'INSERT INTO user_data (name, user_id) VALUES ($1, $2)'\n    },\n    'get all contacts': {\n        message: 'Get all contacts',\n        variable: 'name'\n    },\n    'get one contact': {\n        message: 'Get one contact. Input contact name',\n        variable: 'name'\n    },\n    'waiting_for_contact_name': {\n        message: 'Get one contact. Input contact name',\n        variable: 'name',\n        nextStage: 'print_contact'\n    }\n};\n\nlet state = flow.get('state');\nconst text = flow.get('text').toLowerCase();\nconst keyboard = flow.get('mainKeyboard');\nconst chatid = flow.get('userid');\n\nnode.warn('state: ' + state);\nnode.warn('text: ' + text);\n\nif (state === null) {\n    state = 'start';\n}\n\nlet currentState;\nlet nextStage;\n\nif (state === 'waiting_for_choice') {\n    node.warn('state - waiting_for_choice');\n\n    if (stages[text]) {\n        node.warn('stages[text] exist');\n        nextStage = text;\n        node.warn('nextStage: ' + nextStage);\n    } else {\n        node.warn('stages[text] not exist');\n        nextStage = 'start';\n    }\n}\n\nif (stages[text]) {\n    node.warn('stages[text]: ' + JSON.stringify(stages[text]));\n    currentState = stages[text];\n} else {\n    currentState = stages[state]\n}\n\nnode.warn('currentState: ' + JSON.stringify(currentState))\nnextStage = currentState.nextStage;\n\nmsg.payload = {\n    chat_id: chatid,\n    text: currentState.message,\n    reply_markup: flow.get('mainKeyboard'),\n    nextStage: currentState.nextStage,\n};\n\n// msg.queryParameters = {\n//     chatid: chatid,\n//     text: text\n// }\n// msg.query = `UPDATE users SET state = $2 WHERE chat_id = $1; ${currentState.query}`;\nmsg.query = `\nBEGIN;\n    UPDATE users SET state = 'active' WHERE chat_id = 12345;\n    INSERT INTO logs (user_id, action) VALUES (12345, 'User activated');\nCOMMIT;\n`;\nmsg.params = [chatid, nextStage];\nnode.warn('text: ' + text);\nnode.warn('message: ' + stages[nextStage].message);\nnode.warn(\"chat_id \" + msg.payload.chat_id);\nnode.warn(\"nextStage \" + msg.payload.nextStage);\nnode.warn('query: ' + msg.query)\nnode.warn('params: ' + msg.params);\nnode.warn('queryParameters: ' + JSON.stringify(msg.queryParameters));\nnode.warn('msg.payload перед відправкою: ' + JSON.stringify(msg.payload));\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6494ab74a75cabd8",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "temporaty function",
+        "func": "const stages = {\n    'start': {\n        stage: 'start',\n        message: 'Hello! What would you like to do?',\n        variable: 'iserid',\n        nextStage: 'waiting_for_choice',\n        query: ''\n    },\n    'waiting_for_choice': {\n        message: '',\n        query: ''\n    },\n    'no_such_stage': {\n        message: 'No such command. Make you choice one more time',\n        nextStage: \"start\"\n    },\n    'name': {\n        stage: 'name',\n        message: 'What is contact name?',\n        variable: 'name',\n        nextStage: 'email',\n    },\n    'email': {\n        stage: 'email',\n        message: 'What is your birthday?',\n        variable: 'email'\n    },\n    'birthday': {\n        stage: 'birthday',\n        message: 'Thank you! Your data saved',\n        variable: 'birthday'\n    },\n    'final': {\n        stage: 'final',\n        message: 'Thank you! Your data saved',\n        variable: 'none'\n    },\n    'create contact': {\n        message: 'Create contact. Input name',\n        variable: 'name',\n        nextStage: 'save_contact',\n        query: ''\n    },\n    'save_contact': {\n        message: 'Your contact saved',\n        variable: 'name',\n        nextStage: 'start',\n        query: 'INSERT INTO user_data (name, user_id) VALUES ($1, $2)'\n    },\n    'get all contacts': {\n        message: 'Get all contacts',\n        variable: 'name'\n    },\n    'get one contact': {\n        message: 'Get one contact. Input contact name',\n        variable: 'name'\n    },\n    'waiting_for_contact_name': {\n        message: 'Get one contact. Input contact name',\n        variable: 'name',\n        nextStage: 'print_contact'\n    }\n};\n\nlet state = flow.get('state');\nconst text = flow.get('text').toLowerCase();\nconst keyboard = flow.get('mainKeyboard');\nconst chatid = flow.get('userid');\n\nnode.warn('state: ' + state);\nnode.warn('text: ' + text);\n\nif (state === null) {\n    state = 'start';\n}\n\nlet currentState;\nlet nextStage;\n\nif (state === 'waiting_for_choice') {\n    node.warn('state - waiting_for_choice');\n\n    if (stages[text]) {\n        node.warn('stages[text] exist');\n        nextStage = text;\n        node.warn('nextStage: ' + nextStage);\n    } else {\n        node.warn('stages[text] not exist');\n        nextStage = 'start';\n    }\n}\n\nif (stages[text]) {\n    node.warn('stages[text]: ' + JSON.stringify(stages[text]));\n    currentState = stages[text];\n} else {\n    currentState = stages[state]\n}\n\nnode.warn('currentState: ' + JSON.stringify(currentState))\nnextStage = currentState.nextStage;\n\n// msg.payload = {\n//     chat_id: chatid,\n//     text: currentState.message,\n//     reply_markup: flow.get('mainKeyboard'),\n//     nextStage: currentState.nextStage,\n// };\n\nmsg.payload = [\n    {\n        query: `UPDATE users SET state = $1 WHERE chat_id = $2`,\n        firstQuery: '',\n        params: ['start', chatid]\n    },\n    {\n        query: currentState.query,\n        secondQuery: '',\n        params: [text, chatid]\n    },\n    {\n        chat_id: chatid,\n        forRequest: '',\n        text: currentState.message,\n        reply_markup: flow.get('mainKeyboard'),\n    }\n];\n\n// msg.params = [chatid, nextStage];\nnode.warn('text: ' + text);\nnode.warn('message: ' + stages[nextStage].message);\nnode.warn(\"chat_id \" + chatid);\nnode.warn(\"nextStage \" + nextStage);\n// node.warn('query: ' + msg.query)\nnode.warn('params: ' + msg.params);\nnode.warn('msg.payload перед відправкою: ' + JSON.stringify(msg.payload));\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 870,
+        "y": 260,
+        "wires": [
+            [
+                "764e0f3661f7348d"
+            ]
+        ]
+    },
+    {
+        "id": "5a7bf9b61dbc1225",
+        "type": "postgresql",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "query": "INSERT INTO users (chat_id, state) VALUES ($1, $2)",
+        "postgreSQLConfig": "6d8ab450c8588e3a",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 790,
+        "y": 380,
+        "wires": [
+            [
+                "782308c1784472e1"
+            ]
+        ]
+    },
+    {
+        "id": "f2d246eea5c5da7a",
+        "type": "switch",
+        "z": "aae1cecd04864ffd",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "hask",
+                "v": "firstQuery",
+                "vt": "str"
+            },
+            {
+                "t": "hask",
+                "v": "secondQuery",
+                "vt": "str"
+            },
+            {
+                "t": "hask",
+                "v": "forRequest",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 630,
+        "y": 380,
+        "wires": [
+            [
+                "2df4c9b836008c55",
+                "e7503adf58168652",
+                "12f6d7c9b9687ea6"
+            ],
+            [
+                "5a7bf9b61dbc1225",
+                "88fdda2ce6fe1ab9"
+            ],
+            [
+                "32d3bd2a7fb6ddfa",
+                "03960597ed01e893"
+            ]
+        ]
+    },
+    {
+        "id": "e7503adf58168652",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "function 4",
+        "func": "node.warn(JSON.stringify(msg.payload));\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 980,
+        "y": 300,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "782308c1784472e1",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "function 5",
+        "func": "node.warn(JSON.stringify(msg.payload));\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 960,
+        "y": 380,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "bf854ddc4ce50290",
+        "type": "function",
+        "z": "aae1cecd04864ffd",
+        "name": "function 6",
+        "func": "node.warn(JSON.stringify(msg.payload));\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 960,
+        "y": 340,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c817ae0e82dc1a34",
+        "type": "debug",
+        "z": "aae1cecd04864ffd",
+        "name": "debug 5",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1000,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "12f6d7c9b9687ea6",
+        "type": "debug",
+        "z": "aae1cecd04864ffd",
+        "name": "debug 6",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 620,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "88fdda2ce6fe1ab9",
+        "type": "debug",
+        "z": "aae1cecd04864ffd",
+        "name": "debug 7",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 620,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "03960597ed01e893",
+        "type": "debug",
+        "z": "aae1cecd04864ffd",
+        "name": "debug 8",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 620,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "ef31848494194a2f",
+        "type": "function",
+        "z": "546ed257b85f9a0f",
+        "name": "function 3",
+        "func": "const chatId = 666666666666; // Значення chat_id\nconst state = '55555';   // Значення state\n\n// Формування запиту для оновлення\nmsg.query = `UPDATE users SET state = '${state}' WHERE chat_id = ${chatId}`;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 200,
+        "wires": [
+            [
+                "af301087a7ea6d1a",
+                "d74b9e6001e7aebf"
+            ]
+        ]
+    },
+    {
+        "id": "af301087a7ea6d1a",
+        "type": "postgresql",
+        "z": "546ed257b85f9a0f",
+        "name": "",
+        "query": " ",
+        "postgreSQLConfig": "6d8ab450c8588e3a",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 490,
+        "y": 160,
+        "wires": [
+            [
+                "a74ee9796fdbe983"
+            ]
+        ]
+    },
+    {
+        "id": "eb418ce74b319423",
+        "type": "inject",
+        "z": "546ed257b85f9a0f",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 160,
+        "wires": [
+            [
+                "ef31848494194a2f"
+            ]
+        ]
+    },
+    {
+        "id": "a74ee9796fdbe983",
+        "type": "debug",
+        "z": "546ed257b85f9a0f",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 680,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "d74b9e6001e7aebf",
+        "type": "debug",
+        "z": "546ed257b85f9a0f",
+        "name": "debug 4",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 400,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "61552b506154bc4b",
+        "type": "http request",
+        "z": "6dcd980295746559",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "query",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/getUpdates",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 250,
+        "y": 140,
+        "wires": [
+            [
+                "865cd64f793baf28"
+            ]
+        ]
+    },
+    {
+        "id": "865cd64f793baf28",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "handle text",
+        "func": "const result = msg.payload.result;\nnode.warn('msg.payload: '+ JSON.stringify(msg.payload));\nconst lastMessage = result[result.length - 1].message;\nlet text = lastMessage.text;\nnode.warn('text: '+text)\nconst chatId = lastMessage.chat.id;\nnode.warn('chatId: '+chatId)\nflow.set('chatId', chatId);\nflow.set('text', text);\n\nmsg.chatId = chatId;\n\nconst commands = ['/start', '/add', 'help', '/view_all', '/view']\n\n\nconst command = flow.get('command');\n\nif (command === '/add') {\n    msg.text = command;\n}\nnode.warn(commands.includes(text))\nif (commands.includes(text)) {\n    msg.text = text\n}\n\nnode.warn('text: '+JSON.stringify(msg.text))\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 140,
+        "wires": [
+            [
+                "3a5c2eb9dcb1d4ce"
+            ]
+        ]
+    },
+    {
+        "id": "b34ff21d5e8e954f",
+        "type": "http request",
+        "z": "6dcd980295746559",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/${payload.method}",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 750,
+        "y": 140,
+        "wires": [
+            [
+                "41d85e84c8f7e35c"
+            ]
+        ]
+    },
+    {
+        "id": "41d85e84c8f7e35c",
+        "type": "http response",
+        "z": "6dcd980295746559",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 930,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "39f0e00e20e69baf",
+        "type": "postgresql",
+        "z": "6dcd980295746559",
+        "name": "",
+        "query": "",
+        "postgreSQLConfig": "6f655115ce368eb2",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 430,
+        "y": 720,
+        "wires": [
+            [
+                "26721c5f1b6cb95f"
+            ]
+        ]
+    },
+    {
+        "id": "3a5c2eb9dcb1d4ce",
+        "type": "switch",
+        "z": "6dcd980295746559",
+        "name": "",
+        "property": "text",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "/start",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "/help",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "/add",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "/view_all",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "/view (.+)",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 5,
+        "x": 130,
+        "y": 320,
+        "wires": [
+            [
+                "72af1e06c81a9012"
+            ],
+            [
+                "47036e0733591ef4"
+            ],
+            [
+                "66e2669939a1859f"
+            ],
+            [
+                "1288f38a14748538"
+            ],
+            [
+                "d6cf2e337ed46c57"
+            ]
+        ]
+    },
+    {
+        "id": "72af1e06c81a9012",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "/start",
+        "func": "msg.payload = {\n    chat_id: msg.chatId,\n    text: \"Вітаю! Використайте команду /help для отримання списку доступних команд.\"\n};\n\n\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 240,
+        "wires": [
+            [
+                "18b686cdba53a9be"
+            ]
+        ]
+    },
+    {
+        "id": "47036e0733591ef4",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "/help",
+        "func": "msg.payload = {\n    chat_id: msg.chatId,\n    text: `\n    Доступні команди:\n    - /start - Почати роботу з ботом\n    - /add - Додати новий контакт\n    - /view_all - Переглянути всі контакти\n    - /view [ім'я] - Переглянути контакт за ім'ям\n    - /help - Показати цей список команд\n    `\n};\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 280,
+        "wires": [
+            [
+                "18b686cdba53a9be"
+            ]
+        ]
+    },
+    {
+        "id": "66e2669939a1859f",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "/add",
+        "func": "// Зберігаємо стан\ncontext.userState = { step: 1 };\nmsg.payload = {\n    chat_id: msg.chatId,\n    text: \"Введіть ім'я контакту:\"\n};\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 320,
+        "wires": [
+            [
+                "6c934b04fc147ccc"
+            ]
+        ]
+    },
+    {
+        "id": "1288f38a14748538",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "/view all",
+        "func": "msg.topic = 'SELECT * FROM contacts WHERE user_id = $1';\nmsg.params = [msg.chatId];\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 360,
+        "wires": [
+            [
+                "6ef1d09d3ddb6cdc"
+            ]
+        ]
+    },
+    {
+        "id": "d6cf2e337ed46c57",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "/view",
+        "func": "const name = msg.payload.message.text.split(\" \")[1]; // Отримуємо ім'я\nmsg.topic = 'SELECT * FROM contacts WHERE name = $1 AND user_id = $2';\nmsg.params = [name, msg.chatId];\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 400,
+        "wires": [
+            [
+                "18b686cdba53a9be"
+            ]
+        ]
+    },
+    {
+        "id": "6c934b04fc147ccc",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "handle /add",
+        "func": "const chatId = flow.get('chatId')\nflow.set('command', '/add');\n\nlet state = flow.get('state');\n\nif (!state) {\n    state = 'askName'\n}\n\nnode.warn('state: '+state)\nmsg.state = state;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 470,
+        "y": 320,
+        "wires": [
+            [
+                "b036e98e71f4da09"
+            ]
+        ]
+    },
+    {
+        "id": "fb6935512ed6ae91",
+        "type": "postgresql",
+        "z": "6dcd980295746559",
+        "name": "",
+        "query": "",
+        "postgreSQLConfig": "6f655115ce368eb2",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 650,
+        "y": 400,
+        "wires": [
+            [
+                "082ea25f2432dd43"
+            ]
+        ]
+    },
+    {
+        "id": "36cd02efdbea94cc",
+        "type": "postgresql",
+        "z": "6dcd980295746559",
+        "name": "",
+        "query": "",
+        "postgreSQLConfig": "6f655115ce368eb2",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 650,
+        "y": 360,
+        "wires": [
+            [
+                "112a4ca32bfb512d"
+            ]
+        ]
+    },
+    {
+        "id": "112a4ca32bfb512d",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "function 14",
+        "func": "if (msg.payload.length === 0) {\n    msg.payload = {\n        chat_id: msg.chatId,\n        text: \"Контакти не знайдено.\"\n    };\n} else {\n    const contacts = msg.payload.map(contact => `${contact.name}: ${contact.email}, Дата народження: ${contact.birthday}`).join('\\n');\n    msg.payload = {\n        chat_id: msg.chatId,\n        text: `Контакти:\\n${contacts}`\n    };\n}\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 810,
+        "y": 360,
+        "wires": [
+            [
+                "18b686cdba53a9be"
+            ]
+        ]
+    },
+    {
+        "id": "082ea25f2432dd43",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "function 15",
+        "func": "const name = msg.params ? msg.params.name : \"\"; \n\nif (msg.payload.length === 0) {\n    msg.payload = {\n        chat_id: msg.chatId,\n        text: `Контакт з ім'ям ${name} не знайдено.`\n    };\n} else {\n    const contact = msg.payload[0];\n    msg.payload = {\n        chat_id: msg.chatId,\n        text: `Контакт: ${contact.name}\\nЕлектронна пошта: ${contact.email}\\nДата народження: ${contact.birthday}`\n    };\n}\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 810,
+        "y": 400,
+        "wires": [
+            [
+                "18b686cdba53a9be"
+            ]
+        ]
+    },
+    {
+        "id": "a092ce3734f55037",
+        "type": "inject",
+        "z": "6dcd980295746559",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 80,
+        "y": 140,
+        "wires": [
+            [
+                "61552b506154bc4b"
+            ]
+        ]
+    },
+    {
+        "id": "18b686cdba53a9be",
+        "type": "http request",
+        "z": "6dcd980295746559",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 1010,
+        "y": 340,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6ef1d09d3ddb6cdc",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "function 16",
+        "func": "\n    msg.query = 'SELECT * FROM contacts WHERE user_id = $1';\n    msg.params = [msg.chatId];\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 470,
+        "y": 360,
+        "wires": [
+            [
+                "36cd02efdbea94cc"
+            ]
+        ]
+    },
+    {
+        "id": "e5049509a21afbe8",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "process input name",
+        "func": "node.warn(JSON.stringify(msg.payload.result))\nconst result = msg.payload.result;\nconst lastMessage = result[result.length - 1].message;\nconst text = lastMessage.text;\nnode.warn('text: '+text)\nif (msg.state === 'waitingForName') {\n    // Зберігаємо ім'я\n    msg.contact = { name: msg.payload.message.text };\n    msg.state = 'waitingForEmail';  // Змінюємо стан\n}\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 540,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3e934b4bfdd69228",
+        "type": "http request",
+        "z": "6dcd980295746559",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 510,
+        "y": 620,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b036e98e71f4da09",
+        "type": "switch",
+        "z": "6dcd980295746559",
+        "name": "",
+        "property": "state",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "askName",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "askEmail",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "askBirthday",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "saveData",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 4,
+        "x": 130,
+        "y": 620,
+        "wires": [
+            [
+                "396c2942380c57f5"
+            ],
+            [
+                "ed31b9cf206d76a8"
+            ],
+            [
+                "ee43a8a0c184d3d5"
+            ],
+            [
+                "ed5debfc19da0e8e"
+            ]
+        ]
+    },
+    {
+        "id": "396c2942380c57f5",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "ask name",
+        "func": "node.warn('ask name')\nconst chatId = flow.get('chatId')\n\nmsg.payload = {\n    chat_id: chatId,\n    text: 'Please enter the name:'\n};\nmsg.state = 'askEmail';\nflow.set('state', msg.state)\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 560,
+        "wires": [
+            [
+                "3e934b4bfdd69228"
+            ]
+        ]
+    },
+    {
+        "id": "ed31b9cf206d76a8",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "ask email",
+        "func": "node.warn('ask email')\nconst chatId = flow.get('chatId')\nconst name = flow.get('text');\nnode.warn('name: '+name)\nflow.set('name', name);\n\nmsg.payload = {\n    chat_id: chatId,\n    text: 'Please enter the email:'\n};\nmsg.state = 'askBirthday';\nflow.set('state', msg.state)\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 620,
+        "wires": [
+            [
+                "3e934b4bfdd69228"
+            ]
+        ]
+    },
+    {
+        "id": "ee43a8a0c184d3d5",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "askBirthday",
+        "func": "node.warn('ask birthday')\nconst chatId = flow.get('chatId')\nconst email = flow.get('text');\nnode.warn('email: '+email)\nflow.set('email', email);\n\n\nmsg.payload = {\n    chat_id: chatId,\n    text: 'Please enter the birthday in format yyyy-mm-dd:'\n};\nmsg.state = 'saveData';\nflow.set('state', msg.state)\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 285.1692810058594,
+        "y": 671.8385009765625,
+        "wires": [
+            [
+                "3e934b4bfdd69228"
+            ]
+        ]
+    },
+    {
+        "id": "936abc7401539524",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "save data",
+        "func": "node.warn('save data')\nconst chatId = flow.get('chatId')\nconst birthday = flow.get('text')\n\nconst datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;\n\nconst name = flow.get('name');\nconst email = flow.get('email');\nmsg.query = `INSERT INTO contacts (name, email, birthday, user_id) VALUES ($1, $2, $3, $4);`\nmsg.params = [name, email, birthday, chatId];\n\nflow.set('state', 'askName');\nflow.set('command', '/start')\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 280,
+        "y": 720,
+        "wires": [
+            [
+                "39f0e00e20e69baf"
+            ]
+        ]
+    },
+    {
+        "id": "0bec7c8144b4a196",
+        "type": "http request",
+        "z": "6dcd980295746559",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 750,
+        "y": 720,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "26721c5f1b6cb95f",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "function 17",
+        "func": "const chatId = flow.get('chatId')\nmsg.payload = {\n    chat_id: chatId,\n    text: \"Data saved successfully\"\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 720,
+        "wires": [
+            [
+                "0bec7c8144b4a196"
+            ]
+        ]
+    },
+    {
+        "id": "ed5debfc19da0e8e",
+        "type": "function",
+        "z": "6dcd980295746559",
+        "name": "valid date",
+        "func": "const birthday = flow.get('text')\nconst chatId = flow.get('chatId')\n\n\nconst datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;\nlet validMessage;\n\nmsg.valid = true;\nif (!datePattern.test(birthday)) {\n    node.warn('Invalid date format. Please use YYYY-MM-DD.');\n    msg.payload = 'Invalid date format. Please use YYYY-MM-DD.';\n    msg.valid = false;\n    validMessage = 'Input date in format yyyy-mm-dd'\n}\n\n// Додаткова перевірка для перевірки, чи дата є реальною\nconst [year, month, day] = birthday.split('-').map(Number);\n\n// Перевірка, чи місяць у діапазоні 1-12\n\nif (month < 1 || month > 12) {\n    node.warn('Month must be between 1 and 12.');\n    validMessage = 'Month must be between 1 and 12.';\n    msg.valid = false;\n\n}\n\n// Перевірка, чи день у діапазоні 1-31\nif (day < 1 || day > 31) {\n    node.warn('Day must be between 1 and 31.');\n    validMessage = 'Day must be between 1 and 31.';\n    msg.valid = false\n}\n\n// Перевірка кількості днів у місяці\nconst daysInMonth = new Date(year, month, 0).getDate();\nif (day > daysInMonth) {\n    node.warn(`Day must be between 1 and ${daysInMonth} for month ${month}.`);\n    validMessage = `Day must be between 1 and ${daysInMonth} for month ${month}.`;\n    msg.valid = false\n}\n\nmsg.payload = {\n    chat_id: chatId,\n    text: validMessage\n}\n\nif (!msg.valid) {\n    flow.set('state', 'askBirthday')\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 120,
+        "y": 820,
+        "wires": [
+            [
+                "079003a6119e7b4d"
+            ]
+        ]
+    },
+    {
+        "id": "079003a6119e7b4d",
+        "type": "switch",
+        "z": "6dcd980295746559",
+        "name": "",
+        "property": "valid",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            },
+            {
+                "t": "false"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 290,
+        "y": 820,
+        "wires": [
+            [
+                "936abc7401539524"
+            ],
+            [
+                "11ced11ed3b68e78"
+            ]
+        ]
+    },
+    {
+        "id": "11ced11ed3b68e78",
+        "type": "http request",
+        "z": "6dcd980295746559",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.telegram.org/bot7544377620:AAF4h6OGhrk7T4GvTRek7Tim3fMCKHYYhiM/sendMessage",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 470,
+        "y": 820,
+        "wires": [
+            []
+        ]
+    }
+]
